@@ -72,9 +72,9 @@
       }
       #authorize-button{
         display: inline-block;
-/*        width: 240px;
+       /* width: 240px;
         height: 50px;
-        background-image: url("btn_google_signin_light_normal_web.png");*/
+        background-image: url("btn_google_signin_light_normal_web.png"); */
       }
 /*      #authorize-button:hover{
         background-image: url("btn_google_signin_light_focus_web.png");
@@ -111,10 +111,19 @@
       </div>
       <div class="row">
         <div id="login-logout" class="col-xs-12">
-          <div id="authorize-button"></div>
-          <button id="signout-button" class="btn btn-primary hidden" onclick="handleSignoutClick()">Sign Out</button>
+          <!-- <div id="authorize-button"></div>
+          <button id="signout-button" class="btn btn-primary hidden" onclick="handleSignoutClick()">Sign Out</button> -->
+          <button id="authorize_button" onclick="handleAuthClick()">Authorize</button>
+          <button id="signout_button" onclick="handleSignoutClick()">Sign Out</button>
+          <button id="begin_button" onclick="updateSigninStatus(true)">Start</button>
+          
+        
+        
         </div>
       </div>
+
+    
+
 
       <div class="row">
         <div id="settings" class="hidden col-xs-12 col-sm-6 col-sm-offset-3 col-md-4 col-md-offset-4">
@@ -183,15 +192,33 @@
     </div>
 
     <script type="text/javascript">
+     /* exported gapiLoaded */
+      /* exported gisLoaded */
+      /* exported handleAuthClick */
+      /* exported handleSignoutClick */
+
       // Client ID and API key from the Developer Console
-      var CLIENT_ID = "180558660158-79v5qhc91h84hotb3526l7t3co9n7qu7.apps.googleusercontent.com";
+      // var CLIENT_ID = "180558660158-79v5qhc91h84hotb3526l7t3co9n7qu7.apps.googleusercontent.com";
+
+      const CLIENT_ID = '238795169251-b8ov94tp9v15jq3u7b3r62ppnb5bfdlm.apps.googleusercontent.com';
+      const API_KEY = 'AIzaSyDahWrrp242o2L_LnAWTqlTtn8o9wOE9qA';
+
+      
 
       // Array of API discovery doc URLs for APIs
-      var DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"];
-
+      // var DISCOVERY_DOC = ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"];
+      const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
       // Authorization scopes required by the API; multiple scopes can be
       // included, separated by spaces.
-      var SCOPES = "https://www.googleapis.com/auth/drive.metadata.readonly";
+      // var SCOPES = "https://www.googleapis.com/auth/drive.metadata.readonly";
+      const SCOPES = 'https://www.googleapis.com/auth/drive.metadata.readonly';
+      let tokenClient;
+      let gapiInited = false;
+      let gisInited = false;
+
+      document.getElementById('authorize_button').style.visibility = 'hidden';
+      document.getElementById('signout_button').style.visibility = 'hidden';
+
 
       // Namespace
       var sissy = {};
@@ -217,8 +244,9 @@
       sissy.args = parseArgs();
 
       // Load some nodes
-      sissy.authorizeButton = document.getElementById("authorize-button");
-      sissy.signoutButton = document.getElementById("signout-button");
+      sissy.authorizeButton = document.getElementById("authorize_button");
+      sissy.signoutButton = document.getElementById("signout_button");
+      sissy.begin_button = document.getElementById("begin_button");
       sissy.settings = document.getElementById("settings");
       sissy.folderSelect = document.getElementById("folder-select");
       sissy.shuffleCheckbox = document.getElementById("shuffle-checkbox");
@@ -230,73 +258,163 @@
       sissy.tickSound = new Howl({src: ["tick.mp3"]});
 
       /**
-       *  On load, called to load the auth2 library and API client library.
+       * Callback after api.js is loaded.
        */
-      function handleClientLoad(){
-        // Load all used google javascript libs
-        gapi.load("client:auth2:signin2", function(){
-
-          // render google design guidlines compliant log in button
-          gapi.signin2.render("authorize-button", {
-            scope: SCOPES,
-            width: 200,
-            height: 40,
-            longtitle: true,
-            theme: "light",
-            onsuccess: function(){
-
-              // Init the drive client after succesfull login
-              gapi.client.init({
-                // clientId & scope are now handled by signin2. If the are uncommented here this silently fails 
-                // clientId: CLIENT_ID,
-                // scope: SCOPES,
-                discoveryDocs: DISCOVERY_DOCS
-              }).then(function (){
-                // Listen for sign-in state changes.
-                gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
-
-                // Handle the initial sign-in state.
-                updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
-              });
-            }
-          });
-
-          
-        });
+      function gapiLoaded() {
+        gapi.load('client', initializeGapiClient);
+        
       }
 
       /**
-       *  Called when the signed in status changes, to update the UI
-       *  appropriately. After a sign-in, the API is called.
+       * Callback after the API client is loaded. Loads the
+       * discovery doc to initialize the API.
        */
-      function updateSigninStatus(isSignedIn) {
-        if(isSignedIn){
-          sissy.authorizeButton.classList.add("hidden");
-          sissy.signoutButton.classList.remove("hidden");
-          sissy.settings.classList.remove("hidden");
+      async function initializeGapiClient() {
+        await gapi.client.init({
+          apiKey: API_KEY,
+          discoveryDocs: [DISCOVERY_DOC],
+        })
+        gapiInited = true;
+        maybeEnableButtons();
 
-          // load folders to folder-select
-          listFolders();
-        }else{
-          sissy.authorizeButton.classList.remove("hidden");
-          sissy.signoutButton.classList.add("hidden");
-          sissy.settings.classList.add("hidden");
+        
+      }
+
+      /**
+       * Callback after Google Identity Services are loaded.
+       */
+      function gisLoaded() {
+        tokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: CLIENT_ID,
+          scope: SCOPES,
+          callback: '', // defined later
+        });
+        gisInited = true;
+        maybeEnableButtons();
+        
+      }
+
+      /**
+       * Enables user interaction after all libraries are loaded.
+       */
+       function maybeEnableButtons() {
+        if (gapiInited && gisInited) {
+          document.getElementById('authorize_button').style.visibility = 'visible';
         }
+      }
+
+      /**
+       *  Sign in the user upon button click.
+       */
+      function handleAuthClick() {
+        tokenClient.callback = async (resp) => {
+          if (resp.error !== undefined) {
+            throw (resp);
+          }
+          document.getElementById('signout_button').style.visibility = 'visible';
+          document.getElementById('authorize_button').innerText = 'Refresh';
+          console.log('2')
+        };
+
+        if (gapi.client.getToken() === null) {
+          // Prompt the user to select a Google Account and ask for consent to share their data
+          // when establishing a new session.
+          tokenClient.requestAccessToken({prompt: 'consent'});
+        } else {
+          // Skip display of account chooser and consent dialog for an existing session.
+          tokenClient.requestAccessToken({prompt: ''});
+        }
+
+        
       }
 
       /**
        *  Sign out the user upon button click.
        */
-      function handleSignoutClick(event){
-        console.log("sign out called");
-        // does not work for some reason
-        gapi.auth2.getAuthInstance().signOut();
+      function handleSignoutClick() {
+        const token = gapi.client.getToken();
+        if (token !== null) {
+          google.accounts.oauth2.revoke(token.access_token);
+          gapi.client.setToken('');
+          document.getElementById('content').innerText = '';
+          document.getElementById('authorize_button').innerText = 'Authorize';
+          document.getElementById('signout_button').style.visibility = 'hidden';
+        }
       }
 
-      /**
-      * List all Google Drive folders in folder-select
-      */
+          /**
+          *  On load, called to load the auth2 library and API client library.
+          */
+          function handleClientLoad(){
+            // Load all used google javascript libs
+            gapi.load("client:auth2:signin2", function(){
+
+              // render google design guidlines compliant log in button
+              gapi.signin2.render("authorize-button", {
+                scope: SCOPES,
+                width: 200,
+                height: 40,
+                longtitle: true,
+                theme: "light",
+                onsuccess: function(){
+
+                  // Init the drive client after succesfull login
+                  gapi.client.init({
+                    // clientId & scope are now handled by signin2. If the are uncommented here this silently fails 
+                    // clientId: CLIENT_ID,
+                    // scope: SCOPES,
+                    discoveryDocs: DISCOVERY_DOCS
+                  }).then(function (){
+                    // Listen for sign-in state changes.
+                    gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
+
+                    // Handle the initial sign-in state.
+                    updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
+                  });
+                }
+              });
+
+              
+            });
+          }
+
+          // /**
+          //  *  Called when the signed in status changes, to update the UI
+          //  *  appropriately. After a sign-in, the API is called.
+          //  */
+          function updateSigninStatus(isSignedIn) {
+            console.log(sissy.args, 'sissy args')
+            console.log(sissy, 'sissy')
+            
+            if(isSignedIn){
+              sissy.authorizeButton.classList.add("hidden");
+              sissy.signoutButton.classList.remove("hidden");
+              sissy.begin_button.classList.remove("hidden");
+              sissy.settings.classList.remove("hidden");
+
+              // load folders to folder-select
+              listFolders();
+            }else{
+              sissy.authorizeButton.classList.remove("hidden");
+              sissy.signoutButton.classList.add("hidden");
+              sissy.settings.classList.add("hidden");
+            }
+          }
+
+          // /**
+          //  *  Sign out the user upon button click.
+          //  */
+          function handleSignoutClick(event){
+            console.log("sign out called");
+            // does not work for some reason
+            gapi.auth2.getAuthInstance().signOut();
+          }
+
+          /**
+          * List all Google Drive folders in folder-select
+          */
       function listFolders(){
+        console.log(        gapi.client, 'files')
         gapi.client.drive.files.list({
           "q": "mimeType contains 'application/vnd.google-apps.folder' and trashed=false",
           "fields": "files(id, name)"
@@ -304,7 +422,7 @@
           if(!response.error){
             var folders = response.result.files;
             var default_folder;
-            var default_folder_name = "orgasm diet";
+            var default_folder_name = "Orgasm Diet";
             if(sissy.args["folder"]){
               default_folder_name = sissy.args["folder"];
             }
@@ -325,10 +443,14 @@
 
               if(default_folder){
                 sissy.folderSelect.value = default_folder.id;
+          console.log('3')
+                
                 listFiles(default_folder.id);
               }
 
               sissy.folderSelect.onchange = function(){
+          console.log('4')
+                
                 listFiles(sissy.folderSelect.value);
               }
             }else{
@@ -357,9 +479,12 @@
       */
       function listFiles(folderId){
         sissy.urls = [];
+        console.log('gapi', gapi.client.drive)
 
+        
         gapi.client.drive.files.list({
           'q': "trashed=false and '" + folderId + "' in parents and mimeType != 'application/vnd.google-apps.folder' and mimeType != 'application/vnd.google-apps.drive-sdk'",
+          // 'q' : "Orgasm Diet",
           'fields': "files(id, name)",
           'pageSize': 1000
         }).then(function(response){
@@ -485,6 +610,8 @@
 
       function start(event){
         if(!sissy.urls || sissy.urls.length <= 0){
+          console.log('1')
+          
           listFiles(sissy.folderSelect.value);
 
           // if still no urls do not start
@@ -658,10 +785,11 @@
         sissy.limitInput.dispatchEvent(new Event("change"));
       }
     </script>
-
-    <script async defer src="https://apis.google.com/js/api.js"
+    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+    <!-- <script async defer src="https://apis.google.com/js/api.js"
       onload="this.onload=function(){};handleClientLoad()"
       onreadystatechange="if (this.readyState === 'complete') this.onload()">
-    </script>
+    </script> -->
   </body>
 </html>
