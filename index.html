@@ -218,7 +218,7 @@
 
       document.getElementById('authorize_button').style.visibility = 'hidden';
       document.getElementById('signout_button').style.visibility = 'hidden';
-
+      document.getElementById('begin_button').style.visibility = 'hidden';
 
       // Namespace
       var sissy = {};
@@ -313,7 +313,7 @@
           }
           document.getElementById('signout_button').style.visibility = 'visible';
           document.getElementById('authorize_button').innerText = 'Refresh';
-          console.log('2')
+          document.getElementById('begin_button').style.visibility = 'visible';
         };
 
         if (gapi.client.getToken() === null) {
@@ -336,7 +336,6 @@
         if (token !== null) {
           google.accounts.oauth2.revoke(token.access_token);
           gapi.client.setToken('');
-          document.getElementById('content').innerText = '';
           document.getElementById('authorize_button').innerText = 'Authorize';
           document.getElementById('signout_button').style.visibility = 'hidden';
         }
@@ -383,8 +382,6 @@
           //  *  appropriately. After a sign-in, the API is called.
           //  */
           function updateSigninStatus(isSignedIn) {
-            console.log(sissy.args, 'sissy args')
-            console.log(sissy, 'sissy')
             
             if(isSignedIn){
               sissy.authorizeButton.classList.add("hidden");
@@ -401,20 +398,20 @@
             }
           }
 
-          // /**
-          //  *  Sign out the user upon button click.
-          //  */
-          function handleSignoutClick(event){
-            console.log("sign out called");
-            // does not work for some reason
-            gapi.auth2.getAuthInstance().signOut();
-          }
+          // // /**
+          // //  *  Sign out the user upon button click.
+          // //  */
+          // function handleSignoutClick(event){
+          //   console.log("sign out called");
+          //   // does not work for some reason
+          //   gapi.auth2.getAuthInstance().signOut();
+          // }
 
           /**
           * List all Google Drive folders in folder-select
           */
       function listFolders(){
-        console.log(        gapi.client, 'files')
+     
         gapi.client.drive.files.list({
           "q": "mimeType contains 'application/vnd.google-apps.folder' and trashed=false",
           "fields": "files(id, name)"
@@ -443,13 +440,11 @@
 
               if(default_folder){
                 sissy.folderSelect.value = default_folder.id;
-          console.log('3')
-                
+               
                 listFiles(default_folder.id);
               }
 
               sissy.folderSelect.onchange = function(){
-          console.log('4')
                 
                 listFiles(sissy.folderSelect.value);
               }
@@ -479,9 +474,7 @@
       */
       function listFiles(folderId){
         sissy.urls = [];
-        console.log('gapi', gapi.client.drive)
-
-        
+       
         gapi.client.drive.files.list({
           'q': "trashed=false and '" + folderId + "' in parents and mimeType != 'application/vnd.google-apps.folder' and mimeType != 'application/vnd.google-apps.drive-sdk'",
           // 'q' : "Orgasm Diet",
@@ -610,7 +603,6 @@
 
       function start(event){
         if(!sissy.urls || sissy.urls.length <= 0){
-          console.log('1')
           
           listFiles(sissy.folderSelect.value);
 
