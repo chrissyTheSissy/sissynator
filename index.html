@@ -113,18 +113,20 @@
         <div id="login-logout" class="col-xs-12">
           <!-- <div id="authorize-button"></div>
           <button id="signout-button" class="btn btn-primary hidden" onclick="handleSignoutClick()">Sign Out</button> -->
-          <button id="authorize_button" onclick="handleAuthClick()">Authorize</button>
-          <button id="signout_button" onclick="handleSignoutClick()">Sign Out</button>
-          <button id="begin_button" onclick="updateSigninStatus(true)">Start</button>
-          
-        
-        
+          <button id="authorize_button" onclick="handleAuthClick()">Authorizee</button>
+          <button id="signout_button" onclick="handleSignoutClick()">Sign Out</button>          
         </div>
       </div>
-
-    
-
-
+      <div class="row">
+        <div id="login-logout" class="col-xs-12">
+          <button id="files_button" onclick="createPicker()">Select files</button>            
+        </div>
+      </div>
+      <div class="row">
+        <div id="login-logout" class="col-xs-12">
+          <button id="begin_button" onclick="updateSigninStatus(true)">Start</button>       
+        </div>
+      </div>
       <div class="row">
         <div id="settings" class="hidden col-xs-12 col-sm-6 col-sm-offset-3 col-md-4 col-md-offset-4">
           <form class="form-horizontal" autocomplete="off">
@@ -211,14 +213,19 @@
       // Authorization scopes required by the API; multiple scopes can be
       // included, separated by spaces.
       // var SCOPES = "https://www.googleapis.com/auth/drive.metadata.readonly";
-      const SCOPES = 'https://www.googleapis.com/auth/drive.metadata.readonly';
+      const SCOPES = 'https://www.googleapis.com/auth/drive.file';
       let tokenClient;
       let gapiInited = false;
       let gisInited = false;
+      let accessToken = null;
+      let pickerInited = false;
+
 
       document.getElementById('authorize_button').style.visibility = 'hidden';
       document.getElementById('signout_button').style.visibility = 'hidden';
       document.getElementById('begin_button').style.visibility = 'hidden';
+      document.getElementById('files_button').style.visibility = 'hidden';
+      
 
       // Namespace
       var sissy = {};
@@ -247,6 +254,7 @@
       sissy.authorizeButton = document.getElementById("authorize_button");
       sissy.signoutButton = document.getElementById("signout_button");
       sissy.begin_button = document.getElementById("begin_button");
+      sissy.files_button = document.getElementById("files_button");
       sissy.settings = document.getElementById("settings");
       sissy.folderSelect = document.getElementById("folder-select");
       sissy.shuffleCheckbox = document.getElementById("shuffle-checkbox");
@@ -262,9 +270,56 @@
        */
       function gapiLoaded() {
         gapi.load('client', initializeGapiClient);
-        
+        gapi.load('picker', onPickerApiLoad);
+
       }
 
+      function onPickerApiLoad() {
+        pickerInited = true;
+      }
+
+      function createPicker() {
+        var docsView = new google.picker.DocsView()
+          .setIncludeFolders(true) 
+          .setMimeTypes('application/vnd.google-apps.folder')
+          .setSelectFolderEnabled(true);
+
+        const showPicker = () => {
+          // TODO(developer): Replace with your API key
+          const picker = new google.picker.PickerBuilder()
+              .addView(new google.picker.DocsView().setParent('root').setIncludeFolders(true))
+              .setOAuthToken(accessToken)
+              .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
+              .setDeveloperKey(API_KEY)
+              .setCallback(pickerCallback)
+              .setAppId('238795169251')
+              .build();
+          picker.setVisible(true);
+      }
+
+      function pickerCallback(data) {
+        updateSigninStatus(true);
+    }
+    showPicker();
+      // // Request an access token.
+      // tokenClient.callback = async (response) => {
+      //   if (response.error !== undefined) {
+      //     throw (response);
+      //   }
+      //   accessToken = response.access_token;
+        
+      // };
+
+
+      // if (accessToken === null) {
+      //   // Prompt the user to select a Google Account and ask for consent to share their data
+      //   // when establishing a new session.
+      //   tokenClient.requestAccessToken({prompt: 'consent'});
+      // } else {
+      //   // Skip display of account chooser and consent dialog for an existing session.
+      //   tokenClient.requestAccessToken({prompt: ''});
+      // }
+    }
       /**
        * Callback after the API client is loaded. Loads the
        * discovery doc to initialize the API.
@@ -276,8 +331,6 @@
         })
         gapiInited = true;
         maybeEnableButtons();
-
-        
       }
 
       /**
@@ -314,6 +367,9 @@
           document.getElementById('signout_button').style.visibility = 'visible';
           document.getElementById('authorize_button').innerText = 'Refresh';
           document.getElementById('begin_button').style.visibility = 'visible';
+          document.getElementById('files_button').style.visibility = 'visible';
+
+          accessToken = resp.access_token;
         };
 
         if (gapi.client.getToken() === null) {
@@ -397,15 +453,6 @@
               sissy.settings.classList.add("hidden");
             }
           }
-
-          // // /**
-          // //  *  Sign out the user upon button click.
-          // //  */
-          // function handleSignoutClick(event){
-          //   console.log("sign out called");
-          //   // does not work for some reason
-          //   gapi.auth2.getAuthInstance().signOut();
-          // }
 
           /**
           * List all Google Drive folders in folder-select
