@@ -87,7 +87,9 @@
       <h4>aka. Sissy Academy Conditioning Helper</h4>
       <p>This tool will help you with your conditioning.</p>
       <ol class="text-left">
-        <li>Login with your Google Drive account and select a folder with images, if you have added new images use the select files button to grant access.</li>
+        <li>Login with your Google Drive account.</li>
+        <li>The first time you use the app you need to give it permission to see your Orgasm Diet folder and the images inside SEPERATELY select add files / folders to do this.</li>
+        <li>If you have added new images use the select files / folders button to grant access to them.</li>
         <li>Set the beats per minute and after how many beats the next image should appear.</li>
         <li>Press start and fully concentrate on your mantra!</li>
       </ol>
@@ -119,7 +121,7 @@
       </div>
       <div class="row">
         <div id="login-logout" class="col-xs-12">
-          <button id="files_button" onclick="createPicker()">Select files</button>            
+          <button id="files_button" onclick="createPicker()">Select files / folders</button>            
         </div>
       </div>
       <div class="row">
@@ -279,15 +281,10 @@
       }
 
       function createPicker() {
-        var docsView = new google.picker.DocsView()
-          .setIncludeFolders(true) 
-          .setMimeTypes('application/vnd.google-apps.folder')
-          .setSelectFolderEnabled(true);
-
         const showPicker = () => {
           // TODO(developer): Replace with your API key
           const picker = new google.picker.PickerBuilder()
-              .addView(new google.picker.DocsView().setParent('root').setIncludeFolders(true))
+              .addView(new google.picker.DocsView().setParent('root').setIncludeFolders(true).setSelectFolderEnabled(true))
               .setOAuthToken(accessToken)
               .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
               .setDeveloperKey(API_KEY)
@@ -298,27 +295,9 @@
       }
 
       function pickerCallback(data) {
-        updateSigninStatus(true);
+        // updateSigninStatus(true);
     }
     showPicker();
-      // // Request an access token.
-      // tokenClient.callback = async (response) => {
-      //   if (response.error !== undefined) {
-      //     throw (response);
-      //   }
-      //   accessToken = response.access_token;
-        
-      // };
-
-
-      // if (accessToken === null) {
-      //   // Prompt the user to select a Google Account and ask for consent to share their data
-      //   // when establishing a new session.
-      //   tokenClient.requestAccessToken({prompt: 'consent'});
-      // } else {
-      //   // Skip display of account chooser and consent dialog for an existing session.
-      //   tokenClient.requestAccessToken({prompt: ''});
-      // }
     }
       /**
        * Callback after the API client is loaded. Loads the
@@ -379,9 +358,7 @@
         } else {
           // Skip display of account chooser and consent dialog for an existing session.
           tokenClient.requestAccessToken({prompt: ''});
-        }
-
-        
+        }        
       }
 
       /**
